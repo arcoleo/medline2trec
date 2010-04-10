@@ -6,13 +6,11 @@ import java.util.ArrayList;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
-import java.nio.charset.CharacterCodingException;
-import java.nio.charset.UnmappableCharacterException;
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
+import org.apache.log4j.*;
 
 public class Trec {
 
+    static Logger logger = Logger.getLogger(Trec.class);
     private String Docno;
     private String Pmid;
     private String Source;
@@ -39,6 +37,10 @@ public class Trec {
         this.setMesh(currCitation);
     }
 
+    public String clean(String str) {
+        return str;
+    }
+
     /**
      * @return the Docno
      */
@@ -60,8 +62,8 @@ public class Trec {
         try {
             this.Docno = "pmid-" + currCitation.getPMID().getvalue();
         } catch (Exception ex) {
-            System.out.println("Ex:setDocno: " + ex);
-            this.Docno = "--";
+            logger.error(ex);
+            this.Docno = "";
         }
     }
 
@@ -86,8 +88,8 @@ public class Trec {
         try {
             this.Pmid = currCitation.getPMID().getvalue();
         } catch (Exception ex) {
-            System.out.println("Ex:setPmid: " + ex);
-            this.Pmid = "--";
+            logger.error(ex);
+            this.Pmid = "";
         }
     }
 
@@ -109,8 +111,8 @@ public class Trec {
         try {
             this.Source = currCitation.getArticle().getJournal().getTitle();
         } catch (Exception ex) {
-            System.out.println("Ex:setSource: " + ex);
-            this.Source = "--";
+            logger.error(ex);
+            this.Source = "";
         }
     }
 
@@ -135,8 +137,8 @@ public class Trec {
         try {
             this.Title = currCitation.getArticle().getArticleTitle();
         } catch (Exception ex) {
-            System.out.println("Ex:setTitle: " + ex);
-            this.Title = "--";
+            logger.error(ex);
+            this.Title = "";
         }
     }
 
@@ -161,8 +163,16 @@ public class Trec {
         try {
             this.Abstract = currCitation.getArticle().getAbstract().getAbstractText();
         } catch (Exception ex) {
-            // FIXME: get other abtract
-            this.Abstract = "";
+            Abstract = "";
+            try {
+                for (OtherAbstract d : currCitation.getOtherAbstract()) {
+                    if (d.getAbstractText().length() > 5) {
+                        this.Abstract += d.getAbstractText();
+                    }
+                }
+            } catch (Exception e) {
+                logger.error("OtherAbstract Exception: " + e);
+            }
         }
     }
 
@@ -184,16 +194,23 @@ public class Trec {
         try {
             this.Issn = currCitation.getArticle().getJournal().getISSN().getvalue();
         } catch (Exception ex) {
-            //System.out.println("Ex:setIssn: " + ex);
-            this.Issn = "--";
+            // NOTE: we don't log this exception because it's so common
+            this.Issn = "";
         }
     }
 
     /**
      * @return the Chemicals
      */
-    public List<String> getChemicals() {
-        return Chemicals;
+    public String getChemicals() {
+        String chems = "";
+        for (String chemical : Chemicals) {
+            chems += chemical + " : ";
+        }
+        if (chems.length() > 5) {
+            chems = chems.substring(0, chems.length() - 3);
+        }
+        return chems;
     }
 
     /**
@@ -213,7 +230,7 @@ public class Trec {
             try {
                 this.Chemicals.add(currChemical.getNameOfSubstance());
             } catch (Exception ex) {
-                System.out.println("Ex:setChemicals: " + ex);
+                logger.error(ex);
             }
         }
     }
@@ -221,8 +238,15 @@ public class Trec {
     /**
      * @return the Mesh
      */
-    public List<String> getMesh() {
-        return Mesh;
+    public String getMesh() {
+        String mesh_str = "";
+        for (String currMesh : Mesh) {
+            mesh_str += currMesh + " : ";
+        }
+        if (mesh_str.length() > 5) {
+            mesh_str = mesh_str.substring(0, mesh_str.length() - 3);
+        }
+        return mesh_str;
     }
 
     /**
@@ -242,7 +266,7 @@ public class Trec {
             try {
                 this.Mesh.add(currMesh.getDescriptorName().getvalue());
             } catch (Exception ex) {
-                System.out.println("Ex:setMesh: " + ex);
+                logger.error(ex);
             }
         }
     }
@@ -262,20 +286,34 @@ public class Trec {
     }
 
     public void setPubdate(MedlineCitation currCitation) {
-        // FIXME: get proper date
+        Pubdate = "";
         try {
-            this.Pubdate = currCitation.getArticle().getJournal().getJournalIssue().getPubDate().getYearOrMonthOrDayOrSeasonOrMedlineDate().toString();
+            for (Object d : currCitation.getArticle().getJournal().getJournalIssue().getPubDate().getYearOrMonthOrDayOrSeasonOrMedlineDate()) {
+                if (d instanceof Medline.Year) {
+                    this.Pubdate += ((Medline.Year) d).getvalue() + " ";
+                } else if (d instanceof Medline.Month) {
+                    this.Pubdate += ((Medline.Month) d).getvalue() + " ";
+                }
+            }
+            Pubdate = Pubdate.trim();
         } catch (Exception ex) {
-            System.out.println("Ex:setPubdate: " + ex);
-            this.Pubdate = "--";
+            logger.error(ex);
         }
     }
 
     /**
      * @return the Authors
      */
-    public List<String> getAuthors() {
-        return Authors;
+    public String getAuthors() {
+        //return Authors;
+        String auth = "";
+        for (String author : Authors) {
+            auth += author + " : ";
+        }
+        if (auth.length() > 5) {
+            auth = auth.substring(0, auth.length() - 3);
+        }
+        return auth;
     }
 
     /**
@@ -315,16 +353,13 @@ public class Trec {
             try {
                 this.Authors.add(fname + " " + lname + padding);
             } catch (Exception ex) {
-                System.out.println("Ex:setAuthors: " + ex);
+                logger.error(ex);
             }
         }
 
         // remove separator
         this.Authors.remove(this.Authors.size() - 1);
         this.Authors.add(fname + " " + lname);
-        //for (String curr : this.Authors) {
-        //    System.out.println(curr);
-        //}
 
     }
 
@@ -357,52 +392,30 @@ public class Trec {
     }
 
     public String getXmlString() {
-        Charset charset = Charset.forName("US-ASCII");
-        CharsetDecoder decoder = charset.newDecoder();
-        CharsetEncoder encoder = charset.newEncoder();
         String s = "";
-        
+
 
         String retString = new String(
                 "<DOC>\n"
                 + "<DOCNO>" + this.getDocno() + "</DOCNO>\n"
-                + "<PMID>" + this.getPmid() + "</PMID\n"
-                + "<TITLE>" + this.getTitle() + "</TITLE>\n"
-                + "<ABSTRACT>" + this.getAbstract() + "</ABSTRACT>\n"
+                + "<PMID>" + this.getPmid() + "</PMID>\n"
+                + "<TITLE>" + this.clean(this.getTitle()) + "</TITLE>\n"
+                + "<ABSTRACT>" + this.clean(this.getAbstract()) + "</ABSTRACT>\n"
                 + "<ISSN>" + this.getIssn() + "</ISSN>\n"
                 + "<PUBDATE>" + this.getPubdate() + "</PUBDATE>\n"
-                + "<SOURCE>" + this.getSource() + "</SOURCE>\n"
-                + "<AUTHORS>" + this.getAuthors() + "</AUTHORS>\n"
-                + "<CHEMICALS>" + this.getChemicals() + "</CHEMICALS>\n"
+                + "<SOURCE>" + this.clean(this.getSource()) + "</SOURCE>\n"
+                + "<AUTHOR>" + this.getAuthors() + "</AUTHOR>\n"
+                + "<CHEMICALS>" + this.getChemicals().toString() + "</CHEMICALS>\n"
                 + "<MESH>" + this.getMesh() + "</MESH>\n"
-                + "</DOC>");
+                + "</DOC>\n");
         try {
+            // FIXME: possibly get rid of conversion?
             byte[] b = retString.getBytes("UTF-8");
             return new String(b, "US-ASCII");
-        } catch (Exception e) {
-            System.out.println("getBytes Exception: " + e);
+        } catch (Exception ex) {
+            logger.error(ex);
             return retString;
         }
-
-        // FIXME: properly convert to ascii
-//        try {
-//            // Convert a string to ISO-LATIN-1 bytes in a ByteBuffer
-//            // The new ByteBuffer is ready to be read.
-//            ByteBuffer bbuf = encoder.encode(CharBuffer.wrap(retString));
-//
-//            // Convert ISO-LATIN-1 bytes in a ByteBuffer to a character ByteBuffer and then to a string.
-//            // The new ByteBuffer is ready to be read.
-//            CharBuffer cbuf = decoder.decode(bbuf);
-//            s = cbuf.toString();
-//        } catch (UnmappableCharacterException e) {
-//            System.out.println("Unmappable Ecoding error: " + e);
-//            return retString;
-//        } catch (CharacterCodingException e) {
-//            System.out.println("Ecoding error: " + e);
-//            //return retString;
-//
-//        }
-//        return s;
     }
 
     public String getAnnotatorXmlString() {
@@ -412,7 +425,7 @@ public class Trec {
                 + "<TEXT>" + this.getTitle()
                 + "\n"
                 + this.getAbstract() + "</TEXT>\n"
-                + "</DOC>");
+                + "</DOC>\n");
         return retString;
     }
 }
